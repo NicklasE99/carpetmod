@@ -36,7 +36,7 @@ import net.minecraft.server.MinecraftServer;
 public class CarpetSettings
 {
     public static boolean locked = false;
-    public static final String carpetVersion = "v18_10_11";
+    public static final String carpetVersion = "v19_01_01";
 
     public static final Logger LOG = LogManager.getLogger();
     private static final Map<String, CarpetSettingEntry> settings_store;
@@ -113,15 +113,15 @@ public class CarpetSettings
   // !? rule("potionsDespawnFix",     "fix", "Allows mobs with potion effects to despawn outside of player range")
   //                              .extraInfo("Specifically effective to let witches drinking their own stuffs despawn"),
   rule("ctrlQCraftingFix",      "fix survival", "Dropping entire stacks works also from on the crafting UI result slot"),
-  //!rule("persistentParrots",     "survival feature", "Parrots don't get of your shoulders until you receive damage"),
+  rule("persistentParrots",     "survival feature", "Parrots don't get of your shoulders until you receive damage"),
   //???rule("breedingMountingDisabled", "fix", "Prevents players from mounting animals when holding breeding food"),
   //!rule("growingUpWallJump",     "fix", "Mobs growing up won't glitch into walls or go through fences"),
   //!rule("reloadSuffocationFix",  "fix experimental", "Won't let mobs glitch into blocks when reloaded.")
   //                              .extraInfo("Can cause slight differences in mobs behaviour"),
   rule("xpNoCooldown",          "creative", "Players absorb XP instantly, without delay"),
-  //!rule("combineXPOrbs",         "creative", "XP orbs combine with other into bigger orbs"),
-  //!rule("stackableEmptyShulkerBoxes", "survival", "Empty shulker boxes can stack to 64 when dropped on the ground")
-  //                              .extraInfo("To move them around between inventories, use shift click to move entire stacks"),
+  rule("combineXPOrbs",         "creative", "XP orbs combine with other into bigger orbs"),
+  rule("stackableShulkerBoxes", "survival", "Empty shulker boxes can stack to 64 when dropped on the ground")
+                                .extraInfo("To move them around between inventories, use shift click to move entire stacks"),
   //!rule("rideableGhasts",        "survival feature", "Named ghasts won't attack players and allow to be ridden and controlled")
   //                              .extraInfo("Hold a ghast tear to bring a tamed ghast close to you",
   //                                         "Use fire charges when riding to shoot fireballs",
@@ -145,7 +145,7 @@ public class CarpetSettings
   //???<no block data anymore> rule("repeaterPoweredTerracota", "experimental creative", "Repeater delays depends on stained hardened clay aka terracotta on which they are placed")
   //                              .extraInfo("1 to 15 gt per delay added (1-15 block data), 0 (white) adds 100gt per tick"),
   //!rule("unloadedEntityFix",     "experimental creative", "Entities pushed or moved into unloaded chunks no longer disappear"),
-  //!rule("TNTDoNotUpdate",        "tnt", "TNT doesn't update when placed against a power source"),
+  rule("TNTDoNotUpdate",        "tnt", "TNT doesn't update when placed against a power source"),
   rule("antiCheatSpeed",        "creative surival", "Prevents players from rubberbanding when moving too fast"),
   rule("quasiConnectivity",     "creative", "Pistons, droppers and dispensers react if block above them is powered")
                                 .defaultTrue(),
@@ -209,8 +209,8 @@ public class CarpetSettings
                                 .extraInfo(" - 1.8 : fixed 4 mobs per pack for all mobs, 'subchunk' rule",
                                            " - 1.12 : fixed 1 to 4 pack size, ignoring entity collisions, subchunk rule",
                                            " - 1.13 : vanilla",
-                                           " - 1.14 : mobs don't spawn outside of 128 sphere around players")
-                                .choices("1.13","1.8 1.12 1.13 1.14")
+                                           " - 1.13.2 : mobs don't spawn outside of 128 sphere around players")
+                                .choices("1.13","1.8 1.12 1.13 1.13.2")
                                 .validate( (s) -> {
                                     String value = CarpetSettings.getString("mobSpawningAlgorithm");
                                     CarpetSettings.n_mobSpawningAlgorithm = 113;
@@ -225,13 +225,13 @@ public class CarpetSettings
                                         case "1.12":
                                             CarpetSettings.n_mobSpawningAlgorithm = 112;
                                             break;
-                                        case "1.14":
+                                        case "1.13.2":
                                             CarpetSettings.n_mobSpawningAlgorithm = 114;
                                             break;
                                     }
                                 }),
   /////rule("pocketPushing",         "experimental", "Reintroduces piston warping/translocation bug"),
-  rule("portalCaching",         "survival experimental", "Alternative, persistent cashing strategy for nether portals"),
+  rule("portalCaching",         "survival experimental", "Alternative, persistent caching strategy for nether portals"),
   rule("calmNetherFires",       "experimental", "Permanent fires don't schedule random updates"),
   /////rule("observersDoNonUpdate",  "creative", "Observers don't pulse when placed"),
   //!rule("flyingMachineTransparent", "creative", "Transparent observers, TNT and redstone blocks. May cause lighting artifacts"),
@@ -268,7 +268,8 @@ public class CarpetSettings
   /////rule("doubleRetraction",      "experimental", "1.8 double retraction from pistons.")
   //                              .extraInfo("Gives pistons the ability to double retract without side effects."),
   rule("rotatorBlock",          "experimental", "Cactus in dispensers rotates blocks.")
-                                .extraInfo("Cactus in a dispenser gives the dispenser the ability to rotate the blocks that are in front of it anti-clockwise if possible."),
+                                .extraInfo("Cactus in a dispenser gives the dispenser the ability to rotate the blocks " +
+                                           "that are in front of it anti-clockwise if possible."),
   /////rule("netherRNG",             "creative", "Turning nether RNG manipulation on or off.")
   //                              .extraInfo("Turning nether RNG manipulation on or off."),
   /////rule("endRNG",                "creative", "Turning end RNG manipulation on or off.")
@@ -282,8 +283,8 @@ public class CarpetSettings
   //!rule("disableSpawnChunks",    "creative", "Removes the spawn chunks."),
   rule("kelpGenerationGrowLimit", "feature", "limits growth limit of newly naturally generated kelp to this amount of blocks")
                                   .choices("25", "0 2 25").setNotStrict(),
-  rule("renewableCoral",          "feature", "Alternative cashing strategy for nether portals"),
-
+  rule("renewableCoral",          "feature", "Coral structures will grow with bonemeal from coral plants"),
+  rule("placementRotationFix",    "fix", "fixes block placement rotation issue when player rotates quickly while placing blocks"),
         };
         for (CarpetSettingEntry rule: RuleList)
         {
