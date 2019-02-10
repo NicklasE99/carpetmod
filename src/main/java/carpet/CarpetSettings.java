@@ -36,14 +36,15 @@ import net.minecraft.server.MinecraftServer;
 public class CarpetSettings
 {
     public static boolean locked = false;
-    public static final String carpetVersion = "v19_01_01";
+    public static final String carpetVersion = "v19_02_09";
 
     public static final Logger LOG = LogManager.getLogger();
     private static final Map<String, CarpetSettingEntry> settings_store;
     public static final CarpetSettingEntry FalseEntry = CarpetSettingEntry.create("void","all","Error").choices("None","");
 
     public static final String[] default_tags = {"tnt","fix","survival","creative", "experimental","optimizations","feature","commands"}; //tab completion only
-    
+    public static boolean skipGenerationChecks = false;
+
     static {
         settings_store = new HashMap<>();
         set_defaults();
@@ -63,10 +64,8 @@ public class CarpetSettings
     public static int pistonGhostBlocksFix = 0;
     public static boolean quasiConnectivity = true;
 
-    public static boolean fastRedstoneDust = false;
     public static float tntRandomRange = -1;
 
-    public static int railPowerLimit = 8;
     public static int waterFlow = 0;
     public static boolean wirelessRedstone;
     public static boolean optimizedTileEntities = false;
@@ -129,7 +128,7 @@ public class CarpetSettings
   //                              .extraInfo("Hold a ghast tear to bring a tamed ghast close to you",
   //                                         "Use fire charges when riding to shoot fireballs",
   //                                         "Requires flying to be enabled on the server"),
-  //!rule("explosionNoBlockDamage", "tnt", "Explosions won't destroy blocks"),
+  rule("explosionNoBlockDamage", "tnt", "Explosions won't destroy blocks"),
   rule("tntPrimerMomentumRemoved", "tnt", "Removes random TNT momentum when primed"),
   rule("fastRedstoneDust",      "experimental optimizations", "Lag optimizations for redstone dust")
                                 .extraInfo("by Theosib").boolAccelerate().defaultFalse(),
@@ -202,9 +201,10 @@ public class CarpetSettings
                                 .extraInfo("/c and /s commands are available to all players regardless of their permission levels"),
   rule("commandPerimeterInfo",  "commands", "Enables /perimeterinfo command").isACommand()
                                 .extraInfo("... that scans the area around the block for potential spawnable spots"),
-  rule("commandDraw",  "commands", "Enables /draw command").isACommand()
-                                .extraInfo("... allows to paste simple shapes"),
-  rule("commandEval",  "commands", "Enables /eval command").isACommand(),
+  rule("commandDraw",  "commands", "Enables /draw commands").isACommand()
+                                .extraInfo("... allows for drawing simple shapes"),
+  rule("commandEval",  "commands", "Enables /eval and /evalarea commands").isACommand()
+                                .extraInfo("and enables CarpetScript - a powerful in-game scripting API"),
   rule("commandPlayer",         "commands", "Enables /player command to control/spawn players").isACommand(),
   ////rule("commandRNG",            "commands", "Enables /rng command to manipulate and query rng").defaultTrue(),
   ////rule("newLight",              "optimizations", "Uses alternative lighting engine by PhiPros. AKA NewLight mod"),
@@ -213,9 +213,8 @@ public class CarpetSettings
   rule("mobSpawningAlgorithm","experimental","Using version appropriate spawning rules: ")
                                 .extraInfo(" - 1.8 : fixed 4 mobs per pack for all mobs, 'subchunk' rule",
                                            " - 1.12 : fixed 1 to 4 pack size, ignoring entity collisions, subchunk rule",
-                                           " - 1.13 : vanilla",
-                                           " - 1.13.2 : mobs don't spawn outside of 128 sphere around players")
-                                .choices("1.13","1.8 1.12 1.13 1.13.2")
+                                           " - 1.13 : vanilla (per 1.13.2) mobs don't spawn outside of 128 sphere around players")
+                                .choices("1.13","1.8 1.12 1.13")
                                 .validate( (s) -> {
                                     String value = CarpetSettings.getString("mobSpawningAlgorithm");
                                     CarpetSettings.n_mobSpawningAlgorithm = 113;
@@ -229,9 +228,6 @@ public class CarpetSettings
                                         case "1.11":
                                         case "1.12":
                                             CarpetSettings.n_mobSpawningAlgorithm = 112;
-                                            break;
-                                        case "1.13.2":
-                                            CarpetSettings.n_mobSpawningAlgorithm = 114;
                                             break;
                                     }
                                 }),
