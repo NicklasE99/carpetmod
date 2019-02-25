@@ -26,11 +26,10 @@
  */
 package carpet.script;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
-import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -42,6 +41,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
@@ -78,9 +78,6 @@ public class Expression implements Cloneable
 
     public static final Value euler = new NumericValue(
             "2.71828182845904523536028747135266249775724709369995957496696762772407663");
-
-    /** The {@link MathContext} to use for calculations. */
-    private MathContext mc;
 
     /** The current infix expression */
     private String expression;
@@ -509,11 +506,11 @@ public class Expression implements Cloneable
             throw new InternalExpressionException("Second operand may not be null");
     }
 
-    static BigDecimal getNumericalValue(Value v1)
+    static NumericValue getNumericValue(Value v1)
     {
         if (!(v1 instanceof NumericValue))
             throw new InternalExpressionException("Operand has to be of a numeric type");
-        return ((NumericValue) v1).getNumber();
+        return ((NumericValue) v1);
     }
 
 
@@ -533,6 +530,10 @@ public class Expression implements Cloneable
                 catch (InternalExpressionException exc) // might not actually throw it
                 {
                     throw new ExpressionException(e, t, exc.getMessage());
+                }
+                catch (ArithmeticException exc)
+                {
+                    throw new ExpressionException(e, t, "Your math is wrong, "+exc.getMessage());
                 }
             }
         });
@@ -554,6 +555,10 @@ public class Expression implements Cloneable
                 catch (InternalExpressionException exc)
                 {
                     throw new ExpressionException(e, token, exc.getMessage());
+                }
+                catch (ArithmeticException exc)
+                {
+                    throw new ExpressionException(e, token, "Your math is wrong, "+exc.getMessage());
                 }
             }
         });
@@ -631,13 +636,13 @@ public class Expression implements Cloneable
 
     private void addMathematicalUnaryFunction(String name, Function<Double, Double> fun)
     {
-        addUnaryFunction(name, (v) -> new NumericValue(new BigDecimal(fun.apply(getNumericalValue(v).doubleValue()),mc)));
+        addUnaryFunction(name, (v) -> new NumericValue(fun.apply(getNumericValue(v).getDouble())));
     }
 
     private void addMathematicalBinaryFunction(String name, BiFunction<Double, Double, Double> fun)
     {
         addBinaryFunction(name, (w, v) ->
-                new NumericValue(new BigDecimal(fun.apply(getNumericalValue(w).doubleValue(), getNumericalValue(v).doubleValue()), mc)));
+                new NumericValue(fun.apply(getNumericValue(w).getDouble(), getNumericValue(v).getDouble())));
     }
 
 
@@ -656,6 +661,10 @@ public class Expression implements Cloneable
                 catch (InternalExpressionException exc)
                 {
                     throw new ExpressionException(e, t, exc.getMessage());
+                }
+                catch (ArithmeticException exc)
+                {
+                    throw new ExpressionException(e, t, "Your math is wrong, "+exc.getMessage());
                 }
             }
         });
@@ -728,20 +737,6 @@ public class Expression implements Cloneable
      */
     public Expression(String expression)
     {
-        this(expression, MathContext.DECIMAL64);
-    }
-
-    /**
-     * Creates a new expression instance from an expression string with a given
-     * default match context.
-     *
-     * @param expression         The expression. E.g. <code>"2.4*sin(3)/(2-4)"</code> or
-     *                           <code>"sin(y)>0 & max(z, 3)>3"</code>
-     * @param defaultMathContext The {@link MathContext} to use by default.
-     */
-    public Expression(String expression, MathContext defaultMathContext)
-    {
-        this.mc = defaultMathContext;
         this.name = null;
         expression = expression.trim().replaceAll(";+$", "");
         this.expression = expression.replaceAll("\\$", "\n");
@@ -802,27 +797,9 @@ public class Expression implements Cloneable
         addBinaryOperator("*", precedence.get("multiplication*/%"), true, Value::multiply);
         addBinaryOperator("/", precedence.get("multiplication*/%"), true, Value::divide);
         addBinaryOperator("%", precedence.get("multiplication*/%"), true, (v1, v2) ->
-                new NumericValue(getNumericalValue(v1).remainder(getNumericalValue(v2), mc)));
+                new NumericValue(getNumericValue(v1).getDouble() % getNumericValue(v2).getDouble()));
         addBinaryOperator("^", precedence.get("exponent^"), false, (v1, v2) ->
-        {
-            BigDecimal d1 = getNumericalValue(v1);
-            BigDecimal d2 = getNumericalValue(v2);
-            /*-
-             * Thanks to Gene Marin:
-             * http://stackoverflow.com/questions/3579779/how-to-do-a-fractional-power-on-bigdecimal-in-java
-             */
-            int signOf2 = d2.signum();
-            double dn1 = d1.doubleValue();
-            d2 = d2.multiply(new BigDecimal(signOf2)); // n2 is now positive
-            BigDecimal remainderOf2 = d2.remainder(BigDecimal.ONE);
-            BigDecimal n2IntPart = d2.subtract(remainderOf2);
-            BigDecimal intPow = d1.pow(n2IntPart.intValueExact(), mc);
-            BigDecimal doublePow = new BigDecimal(Math.pow(dn1, remainderOf2.doubleValue()));
-            BigDecimal result = intPow.multiply(doublePow, mc);
-            if (signOf2 == -1)
-                result = BigDecimal.ONE.divide(result, mc.getPrecision(), RoundingMode.HALF_UP);
-            return new NumericValue(result);
-        });
+                new NumericValue(Math.pow(getNumericValue(v1).getDouble(), getNumericValue(v2).getDouble())));
 
         addLazyBinaryOperator("&&", precedence.get("and&&"), false, (c, t, lv1, lv2) ->
         {
@@ -851,9 +828,9 @@ public class Expression implements Cloneable
         addBinaryOperator("<=", precedence.get("compare>=><=<"), false, (v1, v2) ->
                 v1.compareTo(v2) <= 0 ? Value.TRUE : Value.FALSE);
         addBinaryOperator("==", precedence.get("equal==!="), false, (v1, v2) ->
-                v1.compareTo(v2) == 0 ? Value.TRUE : Value.FALSE);
+                v1.equals(v2) ? Value.TRUE : Value.FALSE);
         addBinaryOperator("!=", precedence.get("equal==!="), false, (v1, v2) ->
-                v1.compareTo(v2) == 0 ? Value.TRUE : Value.FALSE);
+                v1.equals(v2) ? Value.FALSE : Value.TRUE);
 
         addLazyBinaryOperator("=", precedence.get("assign=<>"), false, (c, t, lv1, lv2) ->
         {
@@ -871,7 +848,8 @@ public class Expression implements Cloneable
                  while(li.hasNext())
                  {
                      String lname = li.next().getVariable();
-                     c.setVariable(lname, (cc, tt) -> ri.next().boundTo(lname));
+                     Value vval = ri.next();
+                     c.setVariable(lname, (cc, tt) -> vval.boundTo(lname));
                  }
                  return (cc, tt) -> Value.TRUE;
             }
@@ -916,26 +894,21 @@ public class Expression implements Cloneable
             return (cc, tt) -> lval;
         });
 
-        addUnaryOperator("-",  false, (v) -> new NumericValue(getNumericalValue(v).multiply(new BigDecimal(-1))));
+        addUnaryOperator("-",  false, (v) -> new NumericValue(-getNumericValue(v).getDouble()));
 
-        addUnaryOperator("+", false, (v) ->
-        {
-            getNumericalValue(v);
-            return v;
-        });
+        addUnaryOperator("+", false, (v) -> new NumericValue(getNumericValue(v).getDouble()));
+
         addUnaryOperator("!", false, (v)-> v.getBoolean() ? Value.FALSE : Value.TRUE); // might need context boolean
+
         addUnaryFunction("not", (v) -> v.getBoolean() ? Value.FALSE : Value.TRUE);
-
-
 
         addUnaryFunction("fact", (v) ->
         {
-            BigDecimal d1 = getNumericalValue(v);
-            int number = d1.intValue();
-            BigDecimal factorial = BigDecimal.ONE;
+            long number = getNumericValue(v).getLong();
+            long factorial = 1;
             for (int i = 1; i <= number; i++)
             {
-                factorial = factorial.multiply(new BigDecimal(i));
+                factorial = factorial * i;
             }
             return new NumericValue(factorial);
         });
@@ -972,6 +945,10 @@ public class Expression implements Cloneable
         addMathematicalUnaryFunction("log10", Math::log10);
         addMathematicalUnaryFunction("log1p", Math::log1p);
         addMathematicalUnaryFunction("sqrt", Math::sqrt);
+        addMathematicalUnaryFunction("abs", Math::abs);
+        addMathematicalUnaryFunction("round", (d) -> (double)Math.round(d));
+        addMathematicalUnaryFunction("floor", Math::floor);
+        addMathematicalUnaryFunction("ceil", Math::ceil);
 
         addFunction("max", (lv) ->
         {
@@ -997,15 +974,17 @@ public class Expression implements Cloneable
             return min;
         });
 
-        addUnaryFunction("abs", (v) -> new NumericValue(getNumericalValue(v).abs(mc)));
-        addBinaryFunction("round", (v1, v2) ->
+        addFunction("sort", (lv) ->
         {
-            BigDecimal toRound = getNumericalValue(v1);
-            int precision = getNumericalValue(v2).intValue();
-            return new NumericValue(toRound.setScale(precision, mc.getRoundingMode()));
+            List<Value> toSort = lv;
+            if (lv.size()==1 && lv.get(0) instanceof ListValue)
+            {
+                toSort = ((ListValue)lv.get(1)).getItems();
+            }
+            Collections.sort(toSort);
+            return new ListValue(toSort);
         });
-        addUnaryFunction("floor", (v) -> new NumericValue(getNumericalValue(v).setScale(0, RoundingMode.FLOOR)));
-        addUnaryFunction("ceil", (v) -> new NumericValue(getNumericalValue(v).setScale(0, RoundingMode.CEILING)));
+
         addUnaryFunction("relu", (v) -> v.compareTo(Value.ZERO) < 0 ? Value.ZERO : v);
         addUnaryFunction("print", (v) ->
         {
@@ -1015,6 +994,20 @@ public class Expression implements Cloneable
         addUnaryFunction("return", (v) -> { throw new ExitStatement(v); });
 
         addFunction("l", ListValue::new);
+
+        addBinaryFunction("element", (v1, v2) -> {
+            if (!(v1 instanceof ListValue))
+            {
+                throw new InternalExpressionException("First argument of element should be a list");
+            }
+            List<Value> items = ((ListValue)v1).getItems();
+            long index = getNumericValue(v2).getLong();
+            int numitems = items.size();
+            long range = abs(index)/numitems;
+            index += (range+2)*numitems;
+            index = index % numitems;
+            return items.get((int)index);
+        });
 
         addLazyFunction("var", 1, (c, t, lv) -> {
             String varname = lv.get(0).evalValue(c).getString();
@@ -1080,7 +1073,7 @@ public class Expression implements Cloneable
         // expr receives bounded variable '_' indicating iteration
         addLazyFunction("loop", 2, (c, t, lv) ->
         {
-            long limit = getNumericalValue(lv.get(0).evalValue(c)).longValue();
+            long limit = getNumericValue(lv.get(0).evalValue(c)).getLong();
             Value lastOne = Value.ZERO;
             LazyValue expr = lv.get(1);
             //scoping
@@ -1253,7 +1246,7 @@ public class Expression implements Cloneable
         //replaced with for
         addLazyFunction("while", 3, (c, t, lv) ->
         {
-            long limit = getNumericalValue(lv.get(1).evalValue(c)).longValue();
+            long limit = getNumericValue(lv.get(1).evalValue(c)).getLong();
             LazyValue condition = lv.get(0);
             LazyValue expr = lv.get(2);
             long i = 0;
@@ -1595,14 +1588,14 @@ public class Expression implements Cloneable
                     {
                         if (token.surface.equalsIgnoreCase("NULL"))
                             return Value.NULL;
-                        return new NumericValue(new BigDecimal(token.surface, mc));
+                        return new NumericValue(token.surface);
                     });
                     break;
                 case STRINGPARAM:
                     stack.push((c, t) -> new StringValue(token.surface) ); // was originally null
                     break;
                 case HEX_LITERAL:
-                    stack.push((c, t) -> new NumericValue(new BigDecimal(new BigInteger(token.surface.substring(2), 16), mc)));
+                    stack.push((c, t) -> new NumericValue(new BigInteger(token.surface.substring(2), 16).doubleValue()));
                     break;
                 default:
                     throw new ExpressionException(this, token, "Unexpected token '" + token.surface + "'");
@@ -1972,6 +1965,10 @@ public class Expression implements Cloneable
             {
                 throw new ExpressionException(e, t, exc.getMessage());
             }
+            catch (ArithmeticException exc)
+            {
+                throw new ExpressionException(e, t, "Your math is wrong, "+exc.getMessage());
+            }
         }
     }
 
@@ -1995,6 +1992,10 @@ public class Expression implements Cloneable
             catch (InternalExpressionException exc) // might not actually throw it
             {
                 throw new ExpressionException(e, t, exc.getMessage());
+            }
+            catch (ArithmeticException exc)
+            {
+                throw new ExpressionException(e, t, "Your math is wrong, "+exc.getMessage());
             }
         }
 

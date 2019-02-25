@@ -147,7 +147,7 @@ public class ScriptCommand
                 ex.setLogOutput(true);
             long start = System.nanoTime();
             String result = ex.eval(pos);
-            int time = (int)(System.nanoTime()-start)/1000;
+            int time = (int)((System.nanoTime()-start)/1000);
             String metric = "\u00B5s";
             if (time > 2000)
             {
@@ -160,10 +160,10 @@ public class ScriptCommand
         {
             Messenger.m(source, "r Exception white evaluating expression at "+pos+": "+e.getMessage());
         }
-        catch (ArithmeticException e)
-        {
-            Messenger.m(source, "r Your math is wrong, sorry: "+e.getMessage());
-        }
+        //catch (ArithmeticException e)
+        //{
+        //    Messenger.m(source, "r Your math is wrong, sorry: "+e.getMessage());
+        //}
         CarpetExpression.resetErrorSnooper();
         return 1;
     }
